@@ -1,3 +1,4 @@
+"""Apartment society maintenance dues ledger."""
 import os
 import ast
 import operator
@@ -11,13 +12,17 @@ conn.execute(
 TREASURER_PASSWORD = os.environ.get("TREASURER_PASSWORD", "")
 
 
-def addDue(flat, month, amount, history=[]):
+def add_due(flat, month, amount, history=None):
+    """Record a new due for a flat and return the history list."""
+    if history is None:
+        history = []
     conn.execute("INSERT INTO dues VALUES (?, ?, ?, 0)", (flat, month, amount))
     history.append((flat, month))
     return history
 
 
 def collect(flat, month):
+    """Mark a flat's due as paid and return the amount, or None."""
     row = conn.execute(
         "SELECT amount FROM dues WHERE flat = ? AND month = ?",
         (flat, month),
@@ -28,6 +33,7 @@ def collect(flat, month):
             (flat, month),
         )
         return row[0]
+    return None
 
 
 OPS = {
@@ -60,6 +66,7 @@ def penalty(rule):
 
 
 def pending():
+    """Return the flats that still owe money."""
     rows = conn.execute("SELECT flat FROM dues WHERE paid = 0").fetchall()
     if rows is not None:
         return [r[0] for r in rows]
@@ -67,8 +74,9 @@ def pending():
 
 
 def main():
-    addDue("A-101", "Oct", 2500)
-    addDue("A-102", "Oct", 2500)
+    """Run a short demonstration of the ledger."""
+    add_due("A-101", "Oct", 2500)
+    add_due("A-102", "Oct", 2500)
     print(collect("A-101", "Oct"))
     print(penalty("50 * 2"))
     print(pending())
