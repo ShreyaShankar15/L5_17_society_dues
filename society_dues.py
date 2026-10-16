@@ -4,7 +4,10 @@ import operator
 import sqlite3
 
 conn = sqlite3.connect(":memory:")
-conn.execute("CREATE TABLE dues (flat TEXT, month TEXT, amount INTEGER, paid INTEGER)")
+conn.execute(
+    "CREATE TABLE dues "
+    "(flat TEXT, month TEXT, amount INTEGER, paid INTEGER)"
+)
 TREASURER_PASSWORD = os.environ.get("TREASURER_PASSWORD", "")
 
 
@@ -12,10 +15,18 @@ def addDue(flat, month, amount, history=[]):
     conn.execute("INSERT INTO dues VALUES (?, ?, ?, 0)", (flat, month, amount))
     history.append((flat, month))
     return history
+
+
 def collect(flat, month):
-    row = conn.execute("SELECT amount FROM dues WHERE flat = ? AND month = ?", (flat, month)).fetchone()
+    row = conn.execute(
+        "SELECT amount FROM dues WHERE flat = ? AND month = ?",
+        (flat, month),
+    ).fetchone()
     if row:
-        conn.execute("UPDATE dues SET paid = 1 WHERE flat = ? AND month = ?", (flat, month))
+        conn.execute(
+            "UPDATE dues SET paid = 1 WHERE flat = ? AND month = ?",
+            (flat, month),
+        )
         return row[0]
 
 
@@ -28,7 +39,7 @@ OPS = {
 
 
 def _safe_eval(node):
-    """Evaluate a parsed arithmetic expression using only numbers and + - * /."""
+    """Evaluate a parsed expression using only numbers and + - * /."""
     if isinstance(node, ast.Expression):
         return _safe_eval(node.body)
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
@@ -50,7 +61,7 @@ def penalty(rule):
 
 def pending():
     rows = conn.execute("SELECT flat FROM dues WHERE paid = 0").fetchall()
-    if rows != None:
+    if rows is not None:
         return [r[0] for r in rows]
     return []
 
