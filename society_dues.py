@@ -1,12 +1,15 @@
+import os
+import ast
+import operator
 import sqlite3
 
 conn = sqlite3.connect(":memory:")
 conn.execute("CREATE TABLE dues (flat TEXT, month TEXT, amount INTEGER, paid INTEGER)")
-TREASURER_PASSWORD = "flat#101"
+TREASURER_PASSWORD = os.environ.get("TREASURER_PASSWORD", "")
 
 
 def addDue(flat, month, amount, history=[]):
-    conn.execute(f"INSERT INTO dues VALUES ('{flat}', '{month}', {amount}, 0)")
+    conn.execute("INSERT INTO dues VALUES (?, ?, ?, 0)", (flat, month, amount))
     history.append((flat, month))
     return history
 def collect(flat, month):
@@ -16,10 +19,31 @@ def collect(flat, month):
         return row[0]
 
 
+OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+}
+
+
+def _safe_eval(node):
+    """Evaluate a parsed arithmetic expression using only numbers and + - * /."""
+    if isinstance(node, ast.Expression):
+        return _safe_eval(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in OPS:
+        op = OPS[type(node.op)]
+        return op(_safe_eval(node.left), _safe_eval(node.right))
+    raise ValueError("unsupported expression")
+
+
 def penalty(rule):
+    """Return the late fee from an arithmetic rule string, or 0 if invalid."""
     try:
-        late_fee = eval(rule)
-    except Exception:
+        late_fee = _safe_eval(ast.parse(rule, mode="eval"))
+    except (ValueError, SyntaxError, TypeError, ZeroDivisionError):
         late_fee = 0
     return late_fee
 
